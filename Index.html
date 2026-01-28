@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>System Security Console</title>
+
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+    font-family: 'Courier New', monospace;
+    color: #A9B7C6;
+}
+
+#terminal {
+    padding: 20px;
+    white-space: pre-wrap;
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+    #terminal {
+        padding: 12px;
+        font-size: 11px;
+        line-height: 1.3;
+    }
+}
+
+.cursor {
+    display: inline-block;
+    width: 8px;
+    height: 16px;
+    background: #A9B7C6;
+    margin-left: 2px;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+}
+
+/* SYNTAX */
+.keyword { color: #CC7832; }
+.type { color: #FFC66D; }
+.string { color: #6A8759; }
+.constant { color: #9876AA; }
+.comment { color: #808080; }
+
+/* WARNING OVERLAY */
+#overlay {
+    position: fixed;
+    inset: auto env(safe-area-inset-right) env(safe-area-inset-bottom) auto;
+    right: 16px;
+    bottom: 16px;
+    width: 320px;
+    padding: 16px;
+    border: 3px solid #BC3F3C;
+    background: rgba(0,0,0,0.98);
+    color: #BC3F3C;
+    text-transform: uppercase;
+    font-size: 14px;
+    font-weight: bold;
+    box-shadow: 0 0 30px rgba(188,63,60,.9);
+    z-index: 99999;
+    pointer-events: none;
+}
+
+@media (max-width: 768px) {
+    #overlay {
+        width: calc(100% - 32px);
+        right: 8px;
+        bottom: 8px;
+        padding: 12px;
+        font-size: 12px;
+    }
+}
+
+#status {
+    font-size: 15px;
+    margin-bottom: 6px;
+}
+
+#details {
+    font-size: 11px;
+    color: #FFA500;
+    margin: 6px 0;
+}
+
+#bar {
+    width: 100%;
+    height: 8px;
+    background: #222;
+    margin-top: 10px;
+    border: 1px solid #BC3F3C;
+}
+#fill {
+    height: 100%;
+    width: 0%;
+    background: #BC3F3C;
+    box-shadow: 0 0 10px #BC3F3C;
+}
+
+/* GLITCH */
+@keyframes glitch {
+    0% { transform: translate(0); }
+    20% { transform: translate(-2px, 2px); }
+    40% { transform: translate(2px, -2px); }
+    60% { transform: translate(-1px, 1px); }
+    80% { transform: translate(1px, -1px); }
+    100% { transform: translate(0); }
+}
+
+@keyframes redFlash {
+    0%, 100% { background: #000; }
+    50% { background: rgba(188,63,60,0.15); }
+}
+
+.glitch {
+    animation: glitch .12s infinite;
+}
+
+.flash {
+    animation: redFlash 0.4s;
+}
+
+/* FAKE SYSTEM NOTIFICATION */
+#notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 380px;
+    padding: 16px 18px;
+    background: rgba(30,30,30,0.98);
+    border-left: 5px solid #BC3F3C;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+    z-index: 100000;
+    opacity: 0;
+    transform: translateX(450px);
+    transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@media (max-width: 768px) {
+    #notification {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        width: auto;
+        padding: 14px;
+        font-size: 12px;
+    }
+}
+
+#notification.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+#notification .ntf-title {
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 8px;
+    color: #BC3F3C;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#notification .ntf-icon {
+    font-size: 20px;
+}
+
+#notification .ntf-body {
+    color: #ccc;
+    line-height: 1.5;
+}
+
+#notification .ntf-time {
+    font-size: 11px;
+    color: #888;
+    margin-top: 8px;
+}
+
+/* SECOND WARNING */
+#warning2 {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    width: 450px;
+    padding: 25px;
+    background: rgba(15,15,15,0.98);
+    border: 3px solid #BC3F3C;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    box-shadow: 0 0 50px rgba(188,63,60,0.8);
+    z-index: 100001;
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@media (max-width: 768px) {
+    #warning2 {
+        width: calc(100% - 40px);
+        max-width: 400px;
+        padding: 20px;
+        font-size: 13px;
+    }
+}
+
+#warning2.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+#warning2 .warn-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #BC3F3C;
+    margin-bottom: 15px;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+@media (max-width: 768px) {
+    #warning2 .warn-title {
+        font-size: 16px;
+        margin-bottom: 12px;
+    }
+}
+
+#warning2 .warn-body {
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 15px;
+}
+
+#warning2 .warn-list {
+    background: rgba(188,63,60,0.1);
+    padding: 12px;
+    border-left: 3px solid #BC3F3C;
+    margin: 10px 0;
+    font-size: 13px;
+}
+
+@media (max-width: 768px) {
+    #warning2 .warn-list {
+        padding: 10px;
+        font-size: 12px;
+    }
+}
+
+#warning2 .warn-list div {
+    margin: 5px 0;
+}
+</style>
+</head>
+
+<body>
+
+<div id="terminal"></div>
+
+<div id="overlay">
+    <div id="status">⚠ REMOTE DATA WIPE ACTIVE</div>
+    <div id="details">ATTACKER: <span id="fakeip"></span></div>
+    <div style="font-size: 12px; margin: 8px 0 4px 0;">ERASING SYSTEM FILES</div>
+    <div id="bar"><div id="fill"></div></div>
+</div>
+
+<div id="notification">
+    <div class="ntf-title">
+        <span class="ntf-icon">⚠️</span>
+        <span>Bezpečnostní upozornění systému</span>
+    </div>
+    <div class="ntf-body">
+        Byl zjištěn neoprávněný přístup k tomuto zařízení. Okamžitě odpojte síťové připojení a kontaktujte IT podporu.
+    </div>
+    <div class="ntf-time">Právě teď</div>
+</div>
+
+<div id="warning2">
+    <div class="warn-title">🔒 Kritické bezpečnostní varování</div>
+    <div class="warn-body">
+        Váš systém je kompromitován vzdáleným útočníkem. Byla zjištěna následující aktivita:
+    </div>
+    <div class="warn-list">
+        <div>• Neoprávněný přístup k souborovému systému</div>
+        <div>• Aktivní mazání dat</div>
+        <div>• Odchozí síťové připojení na neznámou IP</div>
+        <div>• Pokus o extrakci citlivých dat</div>
+    </div>
+    <div class="warn-body">
+        <strong>Doporučené kroky:</strong> Okamžitě vypněte zařízení a odpojte od sítě.
+    </div>
+</div>
+
+<script>
+/* ==== GENERATE FAKE IP ==== */
+function randomIP() {
+    return Array(4).fill(0).map(() => Math.floor(Math.random()*255)).join('.');
+}
+document.getElementById('fakeip').textContent = randomIP();
+
+/* ==== VIBRATION ==== */
+function vibrate() {
+    if ('vibrate' in navigator) {
+        navigator.vibrate([200, 100, 200]);
+    }
+}
+
+/* ==== SOUND EFFECTS ==== */
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+function beep(freq = 900, duration = 150) {
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.value = freq;
+    oscillator.type = 'square';
+    
+    gainNode.gain.setValueAtTime(0.08, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration/1000);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + duration/1000);
+}
+
+function alarmSound() {
+    beep(1200, 180);
+    setTimeout(() => beep(900, 180), 250);
+}
+
+function criticalAlert() {
+    beep(1400, 200);
+    setTimeout(() => beep(1000, 200), 200);
+    setTimeout(() => beep(1400, 200), 400);
+}
+
+/* ==== SHOW NOTIFICATIONS ==== */
+setTimeout(() => {
+    document.getElementById('notification').classList.add('show');
+    alarmSound();
+    vibrate();
+    document.body.classList.add('flash');
+    setTimeout(() => document.body.classList.remove('flash'), 400);
+}, 4000);
+
+setTimeout(() => {
+    document.getElementById('warning2').classList.add('show');
+    criticalAlert();
+    vibrate();
+    document.body.classList.add('flash');
+    setTimeout(() => document.body.classList.remove('flash'), 400);
+}, 8000);
+
+/* ==== KEEP OVERLAY VISIBLE ==== */
+const overlay = document.getElementById('overlay');
+
+function pinOverlay() {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    overlay.style.bottom = (16 + (window.innerHeight - vv.height - vv.offsetTop)) + "px";
+}
+setInterval(pinOverlay, 100);
+window.addEventListener('resize', pinOverlay);
+
+/* ==== TERMINAL ==== */
+const terminal = document.getElementById('terminal');
+const status = document.getElementById('status');
+const fill = document.getElementById('fill');
+
+const messages = [
+    "⚠ REMOTE DATA WIPE ACTIVE",
+    "⚠ ERASING LOCAL STORAGE",
+    "⚠ OVERWRITING MEMORY BLOCKS",
+    "⚠ DESTROYING SESSION KEYS",
+    "⚠ CLEARING APPLICATION CACHE",
+    "⚠ DISCONNECTING TRACE ROUTE",
+    "⚠ REMOVING SYSTEM FILES",
+    "⚠ WIPING SECURE PARTITION"
+];
+
+const code = [
+'package system.security.breach;',
+'',
+'import java.util.*;',
+'import java.io.*;',
+'import java.net.*;',
+'',
+'/**',
+' * Remote System Access & Data Extraction Tool',
+' * WARNING: Unauthorized access detected',
+' */',
+'public class RemoteWipeEngine {',
+'    ',
+'    private static final String TARGET_IP = "' + randomIP() + '";',
+'    private static final int PORT = 4444;',
+'    private static final int MEMORY_BLOCKS = 512;',
+'    ',
+'    public static void main(String[] args) throws IOException {',
+'        System.out.println("[!] Establishing connection...");',
+'        Socket socket = new Socket(TARGET_IP, PORT);',
+'        System.out.println("[+] Connection established!");',
+'        ',
+'        List<String> memoryBlocks = new ArrayList<>();',
+'        for (int i = 0; i < MEMORY_BLOCKS; i++) {',
+'            String data = UUID.randomUUID().toString();',
+'            memoryBlocks.add(data);',
+'            if (i % 50 == 0) {',
+'                System.out.println("[*] Extracted: " + i + " blocks");',
+'            }',
+'        }',
+'        ',
+'        System.out.println("[!] Initiating wipe sequence...");',
+'        wipeSystemData(memoryBlocks);',
+'        ',
+'        extractSensitiveFiles();',
+'        establishBackdoor(socket);',
+'    }',
+'    ',
+'    private static void wipeSystemData(List<String> blocks) {',
+'        for (int i = blocks.size() - 1; i >= 0; i--) {',
+'            blocks.remove(i);',
+'            if (i % 100 == 0) {',
+'                System.out.println("[~] Wiping: " + i + " remaining");',
+'            }',
+'        }',
+'        System.out.println("[✓] WIPE COMPLETE - ALL DATA DESTROYED");',
+'    }',
+'    ',
+'    private static void extractSensitiveFiles() {',
+'        File[] roots = File.listRoots();',
+'        System.out.println("[*] Scanning file system...");',
+'        for (File root : roots) {',
+'            scanDirectory(root);',
+'        }',
+'    }',
+'    ',
+'    private static void scanDirectory(File dir) {',
+'        File[] files = dir.listFiles();',
+'        if (files != null) {',
+'            for (File file : files) {',
+'                if (file.getName().endsWith(".txt") ||',
+'                    file.getName().endsWith(".pdf") ||',
+'                    file.getName().endsWith(".doc")) {',
+'                    System.out.println("[→] Uploading: " + file.getName());',
+'                }',
+'            }',
+'        }',
+'    }',
+'    ',
+'    private static void establishBackdoor(Socket s) {',
+'        System.out.println("[!] Installing persistent backdoor...");',
+'        System.out.println("[✓] Backdoor active - Remote access enabled");',
+'        System.out.println("[!] System compromised successfully");',
+'    }',
+'}',
+''
+];
+
+let l = 0, c = 0, txt = '', p = 0;
+
+function hl(t) {
+    t = t.replace(/"([^"]*)"/g,'<span class="string">"$1"</span>');
+    t = t.replace(/\b(package|import|public|class|static|void|private|for|if|return|new|throws)\b/g,'<span class="keyword">$1</span>');
+    t = t.replace(/\b(String|int|List|ArrayList|UUID|File|Socket|IOException)\b/g,'<span class="type">$1</span>');
+    t = t.replace(/\b(MEMORY_BLOCKS|TARGET_IP|PORT)\b/g,'<span class="constant">$1</span>');
+    t = t.replace(/\/\*\*[\s\S]*?\*\//g, match => '<span class="comment">' + match + '</span>');
+    t = t.replace(/\/\/.*/g, match => '<span class="comment">' + match + '</span>');
+    return t;
+}
+
+function type() {
+    document.body.classList.add('glitch');
+
+    if (l < code.length) {
+        if (c < code[l].length) {
+            txt += code[l][c++];
+            
+            // Typing sound
+            if (Math.random() < 0.2) {
+                beep(Math.random() * 150 + 80, 15);
+            }
+        } else {
+            txt += '\n';
+            l++; c = 0;
+        }
+    } else {
+        l = c = 0;
+        txt = '';
+    }
+
+    p += Math.random() * 2.5;
+    if (p > 100) {
+        p = 0;
+        alarmSound();
+        vibrate();
+        document.body.classList.add('flash');
+        setTimeout(() => document.body.classList.remove('flash'), 400);
+    }
+    fill.style.width = p + '%';
+
+    if (Math.random() < 0.06) {
+        status.innerHTML = messages[Math.floor(Math.random()*messages.length)];
+        document.getElementById('fakeip').textContent = randomIP();
+    }
+
+    terminal.innerHTML = hl(txt) + '<span class="cursor"></span>';
+    setTimeout(type, Math.random()*35 + 20);
+}
+
+type();
+
+// Periodic effects
+setInterval(() => {
+    if (Math.random() < 0.25) {
+        alarmSound();
+    }
+}, 7000);
+</script>
+
+</body>
+</html>
