@@ -51,6 +51,7 @@ html, body {
 .string { color: #6A8759; }
 .constant { color: #9876AA; }
 .comment { color: #808080; }
+.error { color: #BC3F3C; font-weight: bold; }
 
 /* WARNING OVERLAY */
 #overlay {
@@ -104,6 +105,29 @@ html, body {
     width: 0%;
     background: #BC3F3C;
     box-shadow: 0 0 10px #BC3F3C;
+}
+
+/* COUNTER DISPLAY */
+#counter {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    background: rgba(188,63,60,0.15);
+    border: 2px solid #BC3F3C;
+    padding: 10px 15px;
+    color: white;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    z-index: 99998;
+}
+
+#counter div {
+    margin: 3px 0;
+}
+
+#counter span {
+    color: #FFA500;
+    font-weight: bold;
 }
 
 /* GLITCH */
@@ -261,6 +285,125 @@ html, body {
 #warning2 .warn-list div {
     margin: 5px 0;
 }
+
+/* RANSOM WARNING */
+#ransom {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%) scale(0);
+    width: 500px;
+    padding: 25px;
+    background: rgba(10,10,10,0.98);
+    border: 3px solid #8B0000;
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    box-shadow: 0 0 60px rgba(139,0,0,0.9);
+    z-index: 100002;
+    opacity: 0;
+    transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@media (max-width: 768px) {
+    #ransom {
+        width: calc(100% - 40px);
+        padding: 20px;
+        bottom: 80px;
+    }
+}
+
+#ransom.show {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+}
+
+#ransom .title {
+    font-size: 20px;
+    font-weight: bold;
+    color: #FF4444;
+    margin-bottom: 15px;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+#ransom .body {
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 15px;
+}
+
+#ransom code {
+    background: rgba(255,68,68,0.1);
+    padding: 5px 10px;
+    border-radius: 3px;
+    display: block;
+    margin: 10px 0;
+    font-family: monospace;
+    word-break: break-all;
+}
+
+#ransom small {
+    font-size: 12px;
+    color: #aaa;
+    display: block;
+    margin-top: 15px;
+}
+
+/* STOP BUTTON */
+#stopBtn {
+    position: fixed;
+    bottom: 30px;
+    right: 20px;
+    padding: 12px 25px;
+    background: #BC3F3C;
+    color: white;
+    border: none;
+    font-family: 'Segoe UI', sans-serif;
+    font-weight: bold;
+    font-size: 14px;
+    cursor: pointer;
+    z-index: 100003;
+    box-shadow: 0 0 20px rgba(188,63,60,0.7);
+    transition: all 0.3s;
+}
+
+#stopBtn:hover {
+    background: #FF4444;
+    transform: scale(1.05);
+}
+
+@media (max-width: 768px) {
+    #stopBtn {
+        bottom: 15px;
+        right: 15px;
+        padding: 10px 20px;
+        font-size: 13px;
+    }
+}
+
+/* COUNTDOWN TIMER */
+#countdown {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(188,63,60,0.2);
+    padding: 10px 15px;
+    border: 2px solid #BC3F3C;
+    color: #FFA500;
+    font-family: 'Courier New', monospace;
+    font-size: 18px;
+    font-weight: bold;
+    z-index: 99997;
+}
+
+@media (max-width: 768px) {
+    #countdown {
+        top: 10px;
+        right: 10px;
+        font-size: 14px;
+        padding: 8px 12px;
+    }
+}
 </style>
 </head>
 
@@ -268,6 +411,19 @@ html, body {
 
 <div id="terminal"></div>
 
+<!-- Counter for deleted files -->
+<div id="counter">
+    <div>📁 SMAZANÉ SOUBORY: <span id="deletedFiles">0</span>/<span id="totalFiles">5832</span></div>
+    <div>💾 PŘENESENÁ DATA: <span id="transferredMB">0</span> MB</div>
+    <div>🔗 PŘIPOJENÍ: <span id="connections">1</span> aktivní</div>
+</div>
+
+<!-- Countdown timer -->
+<div id="countdown">
+    ⏳ 00:<span id="seconds">47</span>
+</div>
+
+<!-- Main overlay -->
 <div id="overlay">
     <div id="status">⚠ REMOTE DATA WIPE ACTIVE</div>
     <div id="details">ATTACKER: <span id="fakeip"></span></div>
@@ -275,6 +431,7 @@ html, body {
     <div id="bar"><div id="fill"></div></div>
 </div>
 
+<!-- First notification -->
 <div id="notification">
     <div class="ntf-title">
         <span class="ntf-icon">⚠️</span>
@@ -286,6 +443,7 @@ html, body {
     <div class="ntf-time">Právě teď</div>
 </div>
 
+<!-- Second warning -->
 <div id="warning2">
     <div class="warn-title">🔒 Kritické bezpečnostní varování</div>
     <div class="warn-body">
@@ -302,12 +460,46 @@ html, body {
     </div>
 </div>
 
+<!-- Ransom warning -->
+<div id="ransom">
+    <div class="title">🚨 VAŠE DATA BYLA ZAŠIFROVÁNA</div>
+    <div class="body">
+        Zašifrovali jsme všechny soubory. Pro obnovení zaplaťte 0,5 BTC na adresu:
+        <code>1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2</code>
+        <br><br>
+        <small>Po 24 hodinách budou data nenávratně ztracena.</small>
+    </div>
+</div>
+
+<!-- Fake stop button -->
+<button id="stopBtn">
+    ⚠ ZASTAVIT ÚTOK
+</button>
+
 <script>
+/* ==== GLOBÁLNÍ PROMĚNNÉ ==== */
+let deletedFiles = 0;
+const totalFiles = 5832;
+let transferredMB = 0;
+let connections = 1;
+let secondsLeft = 47;
+let isAttackAccelerated = false;
+let typeInterval;
+
 /* ==== GENERATE FAKE IP ==== */
 function randomIP() {
     return Array(4).fill(0).map(() => Math.floor(Math.random()*255)).join('.');
 }
 document.getElementById('fakeip').textContent = randomIP();
+
+/* ==== UPDATE COUNTERS ==== */
+function updateCounters() {
+    document.getElementById('deletedFiles').textContent = deletedFiles;
+    document.getElementById('totalFiles').textContent = totalFiles;
+    document.getElementById('transferredMB').textContent = transferredMB;
+    document.getElementById('connections').textContent = connections;
+    document.getElementById('seconds').textContent = secondsLeft.toString().padStart(2, '0');
+}
 
 /* ==== VIBRATION ==== */
 function vibrate() {
@@ -320,6 +512,10 @@ function vibrate() {
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
 function beep(freq = 900, duration = 150) {
+    if (audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
+    
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
     
@@ -347,6 +543,11 @@ function criticalAlert() {
     setTimeout(() => beep(1400, 200), 400);
 }
 
+function errorSound() {
+    beep(300, 300);
+    setTimeout(() => beep(200, 400), 350);
+}
+
 /* ==== SHOW NOTIFICATIONS ==== */
 setTimeout(() => {
     document.getElementById('notification').classList.add('show');
@@ -354,7 +555,7 @@ setTimeout(() => {
     vibrate();
     document.body.classList.add('flash');
     setTimeout(() => document.body.classList.remove('flash'), 400);
-}, 4000);
+}, 2000);
 
 setTimeout(() => {
     document.getElementById('warning2').classList.add('show');
@@ -362,7 +563,32 @@ setTimeout(() => {
     vibrate();
     document.body.classList.add('flash');
     setTimeout(() => document.body.classList.remove('flash'), 400);
-}, 8000);
+}, 5000);
+
+setTimeout(() => {
+    document.getElementById('ransom').classList.add('show');
+    for(let i = 0; i < 3; i++) {
+        setTimeout(() => alarmSound(), i * 300);
+    }
+    vibrate();
+}, 10000);
+
+/* ==== COUNTDOWN TIMER ==== */
+const countdownInterval = setInterval(() => {
+    if (secondsLeft > 0) {
+        secondsLeft--;
+        updateCounters();
+        
+        // Blink red when under 10 seconds
+        if (secondsLeft <= 10) {
+            document.getElementById('countdown').style.animation = 'redFlash 0.5s infinite';
+        }
+    } else {
+        clearInterval(countdownInterval);
+        document.getElementById('countdown').innerHTML = "⏰ ČAS VYPRŠEL";
+        document.getElementById('countdown').style.color = "#FF4444";
+    }
+}, 1000);
 
 /* ==== KEEP OVERLAY VISIBLE ==== */
 const overlay = document.getElementById('overlay');
@@ -375,7 +601,76 @@ function pinOverlay() {
 setInterval(pinOverlay, 100);
 window.addEventListener('resize', pinOverlay);
 
-/* ==== TERMINAL ==== */
+/* ==== DETECT DEVELOPER TOOLS ==== */
+let devToolsOpened = false;
+setInterval(() => {
+    const widthThreshold = window.outerWidth - window.innerWidth > 100;
+    const heightThreshold = window.outerHeight - window.innerHeight > 100;
+    
+    if ((widthThreshold || heightThreshold) && !devToolsOpened) {
+        devToolsOpened = true;
+        terminal.innerHTML += '\n<span class="error">[!] DETEKOVÁN POKUS O DEBUGGING – ZRYCHLENÍ ÚTOKU!</span>\n';
+        criticalAlert();
+        
+        // Accelerate attack
+        clearInterval(typeInterval);
+        typeInterval = setInterval(type, 5);
+        isAttackAccelerated = true;
+    }
+}, 1000);
+
+/* ==== STOP BUTTON HANDLER ==== */
+document.getElementById('stopBtn').addEventListener('click', function() {
+    this.innerHTML = "❌ SELHÁNÍ – ÚTOK SE ZRYCHLUJE";
+    this.style.background = '#8B0000';
+    this.style.boxShadow = '0 0 30px #FF0000';
+    
+    errorSound();
+    vibrate();
+    
+    // Accelerate everything
+    if (!isAttackAccelerated) {
+        clearInterval(typeInterval);
+        typeInterval = setInterval(type, 5);
+        isAttackAccelerated = true;
+    }
+    
+    // Add fake error to terminal
+    setTimeout(() => {
+        terminal.innerHTML += '\n<span class="error">[!] POKUS O ZASTAVENÍ SELHAL – ÚTOK ESKALUJE</span>\n';
+        alarmSound();
+    }, 500);
+});
+
+/* ==== BLOCK KEYBOARD SHORTCUTS ==== */
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' || (e.ctrlKey && e.key === 'c') || (e.ctrlKey && e.key === 'z')) {
+        e.preventDefault();
+        terminal.innerHTML += '\n<span class="error">[!] Příkaz zablokován – vzdálený útok stále aktivní</span>\n';
+        alarmSound();
+        vibrate();
+    }
+});
+
+/* ==== RANDOM COUNTER UPDATES ==== */
+setInterval(() => {
+    if (Math.random() < 0.3) {
+        deletedFiles += Math.floor(Math.random() * 30) + 5;
+        if (deletedFiles > totalFiles) deletedFiles = totalFiles;
+    }
+    
+    if (Math.random() < 0.2) {
+        transferredMB += Math.floor(Math.random() * 50) + 10;
+    }
+    
+    if (Math.random() < 0.1) {
+        connections += Math.floor(Math.random() * 2);
+    }
+    
+    updateCounters();
+}, 1000);
+
+/* ==== TERMINAL CODE ==== */
 const terminal = document.getElementById('terminal');
 const status = document.getElementById('status');
 const fill = document.getElementById('fill');
@@ -388,7 +683,9 @@ const messages = [
     "⚠ CLEARING APPLICATION CACHE",
     "⚠ DISCONNECTING TRACE ROUTE",
     "⚠ REMOVING SYSTEM FILES",
-    "⚠ WIPING SECURE PARTITION"
+    "⚠ WIPING SECURE PARTITION",
+    "⚠ EXTRACTING CREDENTIALS",
+    "⚠ INSTALLING BACKDOOR"
 ];
 
 const code = [
@@ -427,6 +724,7 @@ const code = [
 '        ',
 '        extractSensitiveFiles();',
 '        establishBackdoor(socket);',
+'        encryptFileSystem();',
 '    }',
 '    ',
 '    private static void wipeSystemData(List<String> blocks) {',
@@ -453,7 +751,8 @@ const code = [
 '            for (File file : files) {',
 '                if (file.getName().endsWith(".txt") ||',
 '                    file.getName().endsWith(".pdf") ||',
-'                    file.getName().endsWith(".doc")) {',
+'                    file.getName().endsWith(".doc") ||',
+'                    file.getName().endsWith(".jpg")) {',
 '                    System.out.println("[→] Uploading: " + file.getName());',
 '                }',
 '            }',
@@ -464,6 +763,12 @@ const code = [
 '        System.out.println("[!] Installing persistent backdoor...");',
 '        System.out.println("[✓] Backdoor active - Remote access enabled");',
 '        System.out.println("[!] System compromised successfully");',
+'    }',
+'    ',
+'    private static void encryptFileSystem() {',
+'        System.out.println("[!] Initializing ransomware module...");',
+'        System.out.println("[*] Encrypting files with AES-256...");',
+'        System.out.println("[✓] ENCRYPTION COMPLETE - PAYMENT REQUIRED");',
 '    }',
 '}',
 ''
@@ -489,7 +794,7 @@ function type() {
             txt += code[l][c++];
             
             // Typing sound
-            if (Math.random() < 0.2) {
+            if (Math.random() < 0.15) {
                 beep(Math.random() * 150 + 80, 15);
             }
         } else {
@@ -497,11 +802,14 @@ function type() {
             l++; c = 0;
         }
     } else {
-        l = c = 0;
+        // Restart code when finished
+        l = 0;
+        c = 0;
         txt = '';
     }
 
-    p += Math.random() * 2.5;
+    // Progress bar
+    p += Math.random() * (isAttackAccelerated ? 5 : 2.5);
     if (p > 100) {
         p = 0;
         alarmSound();
@@ -511,16 +819,20 @@ function type() {
     }
     fill.style.width = p + '%';
 
-    if (Math.random() < 0.06) {
+    // Random status updates
+    if (Math.random() < 0.08) {
         status.innerHTML = messages[Math.floor(Math.random()*messages.length)];
         document.getElementById('fakeip').textContent = randomIP();
     }
 
     terminal.innerHTML = hl(txt) + '<span class="cursor"></span>';
-    setTimeout(type, Math.random()*35 + 20);
+    
+    // Scroll to bottom
+    terminal.scrollTop = terminal.scrollHeight;
 }
 
-type();
+// Start typing
+typeInterval = setInterval(type, isAttackAccelerated ? 5 : 30);
 
 // Periodic effects
 setInterval(() => {
@@ -528,6 +840,9 @@ setInterval(() => {
         alarmSound();
     }
 }, 7000);
+
+// Initial counter update
+updateCounters();
 </script>
 
 </body>
