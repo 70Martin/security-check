@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>System Security Console</title>
+
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+    font-family: 'Courier New', monospace;
+    color: #A9B7C6;
+}
+
+#terminal {
+    padding: 20px;
+    white-space: pre-wrap;
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+    #terminal {
+        padding: 12px;
+        font-size: 11px;
+        line-height: 1.3;
+    }
+}
+
+.cursor {
+    display: inline-block;
+    width: 8px;
+    height: 16px;
+    background: #A9B7C6;
+    margin-left: 2px;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+}
+
+/* SYNTAX */
+.keyword { color: #CC7832; }
+.type { color: #FFC66D; }
+.string { color: #6A8759; }
+.constant { color: #9876AA; }
+.comment { color: #808080; }
+.error { color: #BC3F3C; font-weight: bold; }
+
+/* WARNING OVERLAY */
+#overlay {
+    position: fixed;
+    inset: auto env(safe-area-inset-right) env(safe-area-inset-bottom) auto;
+    right: 16px;
+    bottom: 16px;
+    width: 320px;
+    padding: 16px;
+    border: 3px solid #BC3F3C;
+    background: rgba(0,0,0,0.98);
+    color: #BC3F3C;
+    text-transform: uppercase;
+    font-size: 14px;
+    font-weight: bold;
+    box-shadow: 0 0 30px rgba(188,63,60,.9);
+    z-index: 99999;
+    pointer-events: none;
+}
+
+@media (max-width: 768px) {
+    #overlay {
+        width: calc(100% - 32px);
+        right: 8px;
+        bottom: 8px;
+        padding: 12px;
+        font-size: 12px;
+    }
+}
+
+#status {
+    font-size: 15px;
+    margin-bottom: 6px;
+}
+
+#details {
+    font-size: 11px;
+    color: #FFA500;
+    margin: 6px 0;
+}
+
+#bar {
+    width: 100%;
+    height: 8px;
+    background: #222;
+    margin-top: 10px;
+    border: 1px solid #BC3F3C;
+}
+#fill {
+    height: 100%;
+    width: 0%;
+    background: #BC3F3C;
+    box-shadow: 0 0 10px #BC3F3C;
+}
+
+/* COUNTER DISPLAY */
+#counter {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    background: rgba(188,63,60,0.15);
+    border: 2px solid #BC3F3C;
+    padding: 10px 15px;
+    color: white;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    z-index: 99998;
+}
+
+#counter div {
+    margin: 3px 0;
+}
+
+#counter span {
+    color: #FFA500;
+    font-weight: bold;
+}
+
+/* GLITCH */
+@keyframes glitch {
+    0% { transform: translate(0); }
+    20% { transform: translate(-2px, 2px); }
+    40% { transform: translate(2px, -2px); }
+    60% { transform: translate(-1px, 1px); }
+    80% { transform: translate(1px, -1px); }
+    100% { transform: translate(0); }
+}
+
+@keyframes redFlash {
+    0%, 100% { background: #000; }
+    50% { background: rgba(188,63,60,0.15); }
+}
+
+.glitch {
+    animation: glitch .12s infinite;
+}
+
+.flash {
+    animation: redFlash 0.4s;
+}
+
+/* FAKE SYSTEM NOTIFICATION */
+#notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 380px;
+    padding: 16px 18px;
+    background: rgba(30,30,30,0.98);
+    border-left: 5px solid #BC3F3C;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+    z-index: 100000;
+    opacity: 0;
+    transform: translateX(450px);
+    transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@media (max-width: 768px) {
+    #notification {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        width: auto;
+        padding: 14px;
+        font-size: 12px;
+    }
+}
+
+#notification.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+#notification .ntf-title {
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 8px;
+    color: #BC3F3C;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#notification .ntf-icon {
+    font-size: 20px;
+}
+
+#notification .ntf-body {
+    color: #ccc;
+    line-height: 1.5;
+}
+
+#notification .ntf-time {
+    font-size: 11px;
+    color: #888;
+    margin-top: 8px;
+}
+
+/* SECOND WARNING */
+#warning2 {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    width: 450px;
+    padding: 25px;
+    background: rgba(15,15,15,0.98);
+    border: 3px solid #BC3F3C;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    box-shadow: 0 0 50px rgba(188,63,60,0.8);
+    z-index: 100001;
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@media (max-width: 768px) {
+    #warning2 {
+        width: calc(100% - 40px);
+        max-width: 400px;
+        padding: 20px;
+        font-size: 13px;
+    }
+}
+
+#warning2.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+#warning2 .warn-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #BC3F3C;
+    margin-bottom: 15px;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+@media (max-width: 768px) {
+    #warning2 .warn-title {
+        font-size: 16px;
+        margin-bottom: 12px;
+    }
+}
+
+#warning2 .warn-body {
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 15px;
+}
+
+#warning2 .warn-list {
+    background: rgba(188,63,60,0.1);
+    padding: 12px;
+    border-left: 3px solid #BC3F3C;
+    margin: 10px 0;
+    font-size: 13px;
+}
+
+@media (max-width: 768px) {
+    #warning2 .warn-list {
+        padding: 10px;
+        font-size: 12px;
+    }
+}
+
+#warning2 .warn-list div {
+    margin: 5px 0;
+}
+
+/* RANSOM WARNING */
+#ransom {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%) scale(0);
+    width: 500px;
+    padding: 25px;
+    background: rgba(10,10,10,0.98);
+    border: 3px solid #8B0000;
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    box-shadow: 0 0 60px rgba(139,0,0,0.9);
+    z-index: 100002;
+    opacity: 0;
+    transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@media (max-width: 768px) {
+    #ransom {
+        width: calc(100% - 40px);
+        padding: 20px;
+        bottom: 80px;
+    }
+}
+
+#ransom.show {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+}
+
+#ransom .title {
+    font-size: 20px;
+    font-weight: bold;
+    color: #FF4444;
+    margin-bottom: 15px;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+#ransom .body {
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 15px;
+}
+
+#ransom code {
+    background: rgba(255,68,68,0.1);
+    padding: 5px 10px;
+    border-radius: 3px;
+    display: block;
+    margin: 10px 0;
+    font-family: monospace;
+    word-break: break-all;
+}
+
+#ransom small {
+    font-size: 12px;
+    color: #aaa;
+    display: block;
+    margin-top: 15px;
+}
+
+/* STOP BUTTON */
+#stopBtn {
+    position: fixed;
+    bottom: 30px;
+    right: 20px;
+    padding: 12px 25px;
+    background: #BC3F3C;
+    color: white;
+    border: none;
+    font-family: 'Segoe UI', sans-serif;
+    font-weight: bold;
+    font-size: 14px;
+    cursor: pointer;
+    z-index: 100003;
+    box-shadow: 0 0 20px rgba(188,63,60,0.7);
+    transition: all 0.3s;
+}
+
+#stopBtn:hover {
+    background: #FF4444;
+    transform: scale(1.05);
+}
+
+@media (max-width: 768px) {
+    #stopBtn {
+        bottom: 15px;
+        right: 15px;
+        padding: 10px 20px;
+        font-size: 13px;
+    }
+}
+
+/* COUNTDOWN TIMER */
+#countdown {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(188,63,60,0.2);
+    padding: 10px 15px;
+    border: 2px solid #BC3F3C;
+    color: #FFA500;
+    font-family: 'Courier New', monospace;
+    font-size: 18px;
+    font-weight: bold;
+    z-index: 99997;
+}
+
+@media (max-width: 768px) {
+    #countdown {
+        top: 10px;
+        right: 10px;
+        font-size: 14px;
+        padding: 8px 12px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div id="terminal"></div>
+
+<!-- Counter for deleted files -->
+<div id="counter">
+    <div>📁 SMAZANÉ SOUBORY: <span id="deletedFiles">0</span>/<span id="totalFiles">5832</span></div>
+    <div>💾 PŘENESENÁ DATA: <span id="transferredMB">0</span> MB</div>
+    <div>🔗 PŘIPOJENÍ: <span id="connections">1</span> aktivní</div>
+</div>
+
+<!-- Countdown timer -->
+<div id="countdown">
+    ⏳ 00:<span id="seconds">47</span>
+</div>
+
+<!-- Main overlay -->
+<div id="overlay">
+    <div id="status">⚠ REMOTE DATA WIPE ACTIVE</div>
+    <div id="details">ATTACKER: <span id="fakeip"></span></div>
+    <div style="font-size: 12px; margin: 8px 0 4px 0;">ERASING SYSTEM FILES</div>
+    <div id="bar"><div id="fill"></div></div>
+</div>
+
+<!-- First notification -->
+<div id="notification">
+    <div class="ntf-title">
+        <span class="ntf-icon">⚠️</span>
+        <span>Bezpečnostní upozornění systému</span>
+    </div>
+    <div class="ntf-body">
+        Byl zjištěn neoprávněný přístup k tomuto zařízení. Okamžitě odpojte síťové připojení a kontaktujte IT podporu.
+    </div>
+    <div class="ntf-time">Právě teď</div>
+</div>
+
+<!-- Second warning -->
+<div id="warning2">
+    <div class="warn-title">🔒 Kritické bezpečnostní varování</div>
+    <div class="warn-body">
+        Váš systém je kompromitován vzdáleným útočníkem. Byla zjištěna následující aktivita:
+    </div>
+    <div class="warn-list">
+        <div>• Neoprávněný přístup k souborovému systému</div>
+        <div>• Aktivní mazání dat</div>
+        <div>• Odchozí síťové připojení na neznámou IP</div>
+        <div>• Pokus o extrakci citlivých dat</div>
+    </div>
+    <div class="warn-body">
+        <strong>Doporučené kroky:</strong> Okamžitě vypněte zařízení a odpojte od sítě.
+    </div>
+</div>
+
+<!-- Ransom warning -->
+<div id="ransom">
+    <div class="title">🚨 VAŠE DATA BYLA ZAŠIFROVÁNA</div>
+    <div class="body">
+        Zašifrovali jsme všechny soubory. Pro obnovení zaplaťte 0,5 BTC na adresu:
+        <code>1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2</code>
+        <br><br>
+        <small>Po 24 hodinách budou data nenávratně ztracena.</small>
+    </div>
+</div>
+
+<!-- Fake stop button -->
+<button id="stopBtn">
+    ⚠ ZASTAVIT ÚTOK
+</button>
+
+<script>
+/* ==== GLOBÁLNÍ PROMĚNNÉ ==== */
+let deletedFiles = 0;
+const totalFiles = 5832;
+let transferredMB = 0;
+let connections = 1;
+let secondsLeft = 47;
+let isAttackAccelerated = false;
+let typeInterval;
+
+/* ==== GENERATE FAKE IP ==== */
+function randomIP() {
+    return Array(4).fill(0).map(() => Math.floor(Math.random()*255)).join('.');
+}
+document.getElementById('fakeip').textContent = randomIP();
+
+/* ==== UPDATE COUNTERS ==== */
+function updateCounters() {
+    document.getElementById('deletedFiles').textContent = deletedFiles;
+    document.getElementById('totalFiles').textContent = totalFiles;
+    document.getElementById('transferredMB').textContent = transferredMB;
+    document.getElementById('connections').textContent = connections;
+    document.getElementById('seconds').textContent = secondsLeft.toString().padStart(2, '0');
+}
+
+/* ==== VIBRATION ==== */
+function vibrate() {
+    if ('vibrate' in navigator) {
+        navigator.vibrate([200, 100, 200]);
+    }
+}
+
+/* ==== SOUND EFFECTS ==== */
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+function beep(freq = 900, duration = 150) {
+    if (audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
+    
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.value = freq;
+    oscillator.type = 'square';
+    
+    gainNode.gain.setValueAtTime(0.08, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration/1000);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + duration/1000);
+}
+
+function alarmSound() {
+    beep(1200, 180);
+    setTimeout(() => beep(900, 180), 250);
+}
+
+function criticalAlert() {
+    beep(1400, 200);
+    setTimeout(() => beep(1000, 200), 200);
+    setTimeout(() => beep(1400, 200), 400);
+}
+
+function errorSound() {
+    beep(300, 300);
+    setTimeout(() => beep(200, 400), 350);
+}
+
+/* ==== SHOW NOTIFICATIONS ==== */
+setTimeout(() => {
+    document.getElementById('notification').classList.add('show');
+    alarmSound();
+    vibrate();
+    document.body.classList.add('flash');
+    setTimeout(() => document.body.classList.remove('flash'), 400);
+}, 2000);
+
+setTimeout(() => {
+    document.getElementById('warning2').classList.add('show');
+    criticalAlert();
+    vibrate();
+    document.body.classList.add('flash');
+    setTimeout(() => document.body.classList.remove('flash'), 400);
+}, 5000);
+
+setTimeout(() => {
+    document.getElementById('ransom').classList.add('show');
+    for(let i = 0; i < 3; i++) {
+        setTimeout(() => alarmSound(), i * 300);
+    }
+    vibrate();
+}, 10000);
+
+/* ==== COUNTDOWN TIMER ==== */
+const countdownInterval = setInterval(() => {
+    if (secondsLeft > 0) {
+        secondsLeft--;
+        updateCounters();
+        
+        // Blink red when under 10 seconds
+        if (secondsLeft <= 10) {
+            document.getElementById('countdown').style.animation = 'redFlash 0.5s infinite';
+        }
+    } else {
+        clearInterval(countdownInterval);
+        document.getElementById('countdown').innerHTML = "⏰ ČAS VYPRŠEL";
+        document.getElementById('countdown').style.color = "#FF4444";
+    }
+}, 1000);
+
+/* ==== KEEP OVERLAY VISIBLE ==== */
+const overlay = document.getElementById('overlay');
+
+function pinOverlay() {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    overlay.style.bottom = (16 + (window.innerHeight - vv.height - vv.offsetTop)) + "px";
+}
+setInterval(pinOverlay, 100);
+window.addEventListener('resize', pinOverlay);
+
+/* ==== DETECT DEVELOPER TOOLS ==== */
+let devToolsOpened = false;
+setInterval(() => {
+    const widthThreshold = window.outerWidth - window.innerWidth > 100;
+    const heightThreshold = window.outerHeight - window.innerHeight > 100;
+    
+    if ((widthThreshold || heightThreshold) && !devToolsOpened) {
+        devToolsOpened = true;
+        terminal.innerHTML += '\n<span class="error">[!] DETEKOVÁN POKUS O DEBUGGING – ZRYCHLENÍ ÚTOKU!</span>\n';
+        criticalAlert();
+        
+        // Accelerate attack
+        clearInterval(typeInterval);
+        typeInterval = setInterval(type, 5);
+        isAttackAccelerated = true;
+    }
+}, 1000);
+
+/* ==== STOP BUTTON HANDLER ==== */
+document.getElementById('stopBtn').addEventListener('click', function() {
+    this.innerHTML = "❌ SELHÁNÍ – ÚTOK SE ZRYCHLUJE";
+    this.style.background = '#8B0000';
+    this.style.boxShadow = '0 0 30px #FF0000';
+    
+    errorSound();
+    vibrate();
+    
+    // Accelerate everything
+    if (!isAttackAccelerated) {
+        clearInterval(typeInterval);
+        typeInterval = setInterval(type, 5);
+        isAttackAccelerated = true;
+    }
+    
+    // Add fake error to terminal
+    setTimeout(() => {
+        terminal.innerHTML += '\n<span class="error">[!] POKUS O ZASTAVENÍ SELHAL – ÚTOK ESKALUJE</span>\n';
+        alarmSound();
+    }, 500);
+});
+
+/* ==== BLOCK KEYBOARD SHORTCUTS ==== */
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' || (e.ctrlKey && e.key === 'c') || (e.ctrlKey && e.key === 'z')) {
+        e.preventDefault();
+        terminal.innerHTML += '\n<span class="error">[!] Příkaz zablokován – vzdálený útok stále aktivní</span>\n';
+        alarmSound();
+        vibrate();
+    }
+});
+
+/* ==== RANDOM COUNTER UPDATES ==== */
+setInterval(() => {
+    if (Math.random() < 0.3) {
+        deletedFiles += Math.floor(Math.random() * 30) + 5;
+        if (deletedFiles > totalFiles) deletedFiles = totalFiles;
+    }
+    
+    if (Math.random() < 0.2) {
+        transferredMB += Math.floor(Math.random() * 50) + 10;
+    }
+    
+    if (Math.random() < 0.1) {
+        connections += Math.floor(Math.random() * 2);
+    }
+    
+    updateCounters();
+}, 1000);
+
+/* ==== TERMINAL CODE ==== */
+const terminal = document.getElementById('terminal');
+const status = document.getElementById('status');
+const fill = document.getElementById('fill');
+
+const messages = [
+    "⚠ REMOTE DATA WIPE ACTIVE",
+    "⚠ ERASING LOCAL STORAGE",
+    "⚠ OVERWRITING MEMORY BLOCKS",
+    "⚠ DESTROYING SESSION KEYS",
+    "⚠ CLEARING APPLICATION CACHE",
+    "⚠ DISCONNECTING TRACE ROUTE",
+    "⚠ REMOVING SYSTEM FILES",
+    "⚠ WIPING SECURE PARTITION",
+    "⚠ EXTRACTING CREDENTIALS",
+    "⚠ INSTALLING BACKDOOR"
+];
+
+const code = [
+'package system.security.breach;',
+'',
+'import java.util.*;',
+'import java.io.*;',
+'import java.net.*;',
+'',
+'/**',
+' * Remote System Access & Data Extraction Tool',
+' * WARNING: Unauthorized access detected',
+' */',
+'public class RemoteWipeEngine {',
+'    ',
+'    private static final String TARGET_IP = "' + randomIP() + '";',
+'    private static final int PORT = 4444;',
+'    private static final int MEMORY_BLOCKS = 512;',
+'    ',
+'    public static void main(String[] args) throws IOException {',
+'        System.out.println("[!] Establishing connection...");',
+'        Socket socket = new Socket(TARGET_IP, PORT);',
+'        System.out.println("[+] Connection established!");',
+'        ',
+'        List<String> memoryBlocks = new ArrayList<>();',
+'        for (int i = 0; i < MEMORY_BLOCKS; i++) {',
+'            String data = UUID.randomUUID().toString();',
+'            memoryBlocks.add(data);',
+'            if (i % 50 == 0) {',
+'                System.out.println("[*] Extracted: " + i + " blocks");',
+'            }',
+'        }',
+'        ',
+'        System.out.println("[!] Initiating wipe sequence...");',
+'        wipeSystemData(memoryBlocks);',
+'        ',
+'        extractSensitiveFiles();',
+'        establishBackdoor(socket);',
+'        encryptFileSystem();',
+'    }',
+'    ',
+'    private static void wipeSystemData(List<String> blocks) {',
+'        for (int i = blocks.size() - 1; i >= 0; i--) {',
+'            blocks.remove(i);',
+'            if (i % 100 == 0) {',
+'                System.out.println("[~] Wiping: " + i + " remaining");',
+'            }',
+'        }',
+'        System.out.println("[✓] WIPE COMPLETE - ALL DATA DESTROYED");',
+'    }',
+'    ',
+'    private static void extractSensitiveFiles() {',
+'        File[] roots = File.listRoots();',
+'        System.out.println("[*] Scanning file system...");',
+'        for (File root : roots) {',
+'            scanDirectory(root);',
+'        }',
+'    }',
+'    ',
+'    private static void scanDirectory(File dir) {',
+'        File[] files = dir.listFiles();',
+'        if (files != null) {',
+'            for (File file : files) {',
+'                if (file.getName().endsWith(".txt") ||',
+'                    file.getName().endsWith(".pdf") ||',
+'                    file.getName().endsWith(".doc") ||',
+'                    file.getName().endsWith(".jpg")) {',
+'                    System.out.println("[→] Uploading: " + file.getName());',
+'                }',
+'            }',
+'        }',
+'    }',
+'    ',
+'    private static void establishBackdoor(Socket s) {',
+'        System.out.println("[!] Installing persistent backdoor...");',
+'        System.out.println("[✓] Backdoor active - Remote access enabled");',
+'        System.out.println("[!] System compromised successfully");',
+'    }',
+'    ',
+'    private static void encryptFileSystem() {',
+'        System.out.println("[!] Initializing ransomware module...");',
+'        System.out.println("[*] Encrypting files with AES-256...");',
+'        System.out.println("[✓] ENCRYPTION COMPLETE - PAYMENT REQUIRED");',
+'    }',
+'}',
+''
+];
+
+let l = 0, c = 0, txt = '', p = 0;
+
+function hl(t) {
+    t = t.replace(/"([^"]*)"/g,'<span class="string">"$1"</span>');
+    t = t.replace(/\b(package|import|public|class|static|void|private|for|if|return|new|throws)\b/g,'<span class="keyword">$1</span>');
+    t = t.replace(/\b(String|int|List|ArrayList|UUID|File|Socket|IOException)\b/g,'<span class="type">$1</span>');
+    t = t.replace(/\b(MEMORY_BLOCKS|TARGET_IP|PORT)\b/g,'<span class="constant">$1</span>');
+    t = t.replace(/\/\*\*[\s\S]*?\*\//g, match => '<span class="comment">' + match + '</span>');
+    t = t.replace(/\/\/.*/g, match => '<span class="comment">' + match + '</span>');
+    return t;
+}
+
+function type() {
+    document.body.classList.add('glitch');
+
+    if (l < code.length) {
+        if (c < code[l].length) {
+            txt += code[l][c++];
+            
+            // Typing sound
+            if (Math.random() < 0.15) {
+                beep(Math.random() * 150 + 80, 15);
+            }
+        } else {
+            txt += '\n';
+            l++; c = 0;
+        }
+    } else {
+        // Restart code when finished
+        l = 0;
+        c = 0;
+        txt = '';
+    }
+
+    // Progress bar
+    p += Math.random() * (isAttackAccelerated ? 5 : 2.5);
+    if (p > 100) {
+        p = 0;
+        alarmSound();
+        vibrate();
+        document.body.classList.add('flash');
+        setTimeout(() => document.body.classList.remove('flash'), 400);
+    }
+    fill.style.width = p + '%';
+
+    // Random status updates
+    if (Math.random() < 0.08) {
+        status.innerHTML = messages[Math.floor(Math.random()*messages.length)];
+        document.getElementById('fakeip').textContent = randomIP();
+    }
+
+    terminal.innerHTML = hl(txt) + '<span class="cursor"></span>';
+    
+    // Scroll to bottom
+    terminal.scrollTop = terminal.scrollHeight;
+}
+
+// Start typing
+typeInterval = setInterval(type, isAttackAccelerated ? 5 : 30);
+
+// Periodic effects
+setInterval(() => {
+    if (Math.random() < 0.25) {
+        alarmSound();
+    }
+}, 7000);
+
+// Initial counter update
+updateCounters();
+</script>
+
+</body>
+</html>
